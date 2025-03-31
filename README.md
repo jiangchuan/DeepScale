@@ -40,53 +40,7 @@ Activations are intermediate results stored during the forward pass needed for g
 
 * **High Consumption:** Activation memory often consumes *more* memory than the base components, especially with long sequences and large batch sizes.
 * **Dependencies:** Size depends heavily on `Batch Size`, `Sequence Length`, `Model Hidden Dimension`, and `Number of Layers`.
-* **Example:** A calculation for Batch Size=1, SeqLen=16k, 32 Layers estimated ~1.35 TB of activation memory (specific numbers depend heavily on exact model/precision, but highlights the scale).
-
-**Conceptual Diagram:**
-
-```mermaid
-graph LR
-    subgraph Initial State / Optimizer Memory (Often Offloaded with ZERO)
-        O1[Momentum (FP32)<br>32 GB]
-        O2[Variance (FP32)<br>32 GB]
-    end
-
-    subgraph Training Step Computation (On GPU)
-        direction LR
-        Input[Input Batch<br>?? GB] --> FW[Forward Pass<br>Activations: ?? GB<br>(Variable & Large)];
-        FW --> Loss[Loss Calculation];
-        subgraph Model & Gradients (Partitioned with ZERO)
-            direction TB
-            W[Weights (FP16)<br>16 GB Total]
-            G[Gradients (FP16)<br>16 GB Total]
-        end
-        FW -- Uses --> W;
-        Loss --> BW[Backward Pass];
-        BW -- Calculates --> G;
-        G --> OptStep[Optimizer Step];
-        OptStep -- Updates --> W;
-        OptStep -- Uses & Updates --> O1;
-        OptStep -- Uses & Updates --> O2;
-    end
-
-
-    subgraph Base Memory Calculation (Simplified, Pre-ZERO)
-        M_W[Weights (FP16): 16 GB]
-        M_G[Gradients (FP16): 16 GB]
-        M_O[Optimizer (FP32): 64 GB]
-        M_W & M_G & M_O --> Total[Total Base: 96 GB+<br>(Excludes Activations)]
-    end
-
-    subgraph GPU Memory Context
-        T4[T4: 15GB]
-        RTX4090[4090: 24GB]
-        A100[A100: 40/80GB]
-        H100[H100: 80GB]
-    end
-
-    style Initial State fill:#f9f,stroke:#333,stroke-width:2px
-    style Training Step Computation fill:#ccf,stroke:#333,stroke-width:2px
-```
+* **Example:** A calculation for Batch Size=1, SeqLen=16k, 32 Layers estimated ~1.35 TB of activation memory.
 
 ## Prerequisites
 
